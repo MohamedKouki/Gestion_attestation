@@ -1,9 +1,14 @@
 const express = require('express');
-const user = require('./user');
-const admin = require('./admin');
-const certificate = require('./certificate');
-require('../backend/connect');
+const user = require('./Models/user');
+const admin = require('./Models/admin');
+const certificate = require('./Models/certificate');
+const certif = require('./Models/certif_etud');
+
+require('./Config/connect');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 app = express()
 
 app.use(express.json())
@@ -16,23 +21,80 @@ app.post('/adduser',async (req,res)=>{
     try{
         data = req.body ;
         usr = new user(data);
-        result = await usr.save();
-        res.send(result);
+
+        salt = bcrypt.genSaltSync(10);
+        cryptedpass = await bcrypt.hashSync( data.password , salt);
+        usr.password = cryptedpass;
+
+        result = usr.save();
+        res.status(200).send(result);
     }catch(err){
-        console.log(err);
+        console.status(400).log(err);
     }
 })
 
-app.post('/addadmin', async (req,res)=>{
-    try{
-        data = req.body ;
-        adm = new admin(data);
-        res1 = await adm.save();
-        res.send(res1);
-    }catch(err){
-        res.send(err);
-    }
+app.delete('/deleteUser/:id' ,(req,res)=>{
+
+    let id=req.params.id
+
+    user.findByIdAndDelete({_id: id})
+        .then(
+            (userdelete)=>{
+                res.status(200).send(userdelete)
+            }
+        )
+        .catch(
+            (err)=>{
+                res.status(400).send(err);
+            }
+        )
 })
+
+
+
+/*app.post('/adduser' ,async (req,res)=>{
+
+    data =req.body;
+    user =new user(data);
+
+    salt = bcrypt.genSaltSync(10);
+
+    cryptedpass = await bcrypt.hashSync( data.password , salt);
+
+    user.password = cryptedpass;
+    user.save()
+    .then(
+        (saved)=>{
+            res.status(200).send(user);
+        }
+    )
+    .catch(
+        (error)=>{
+            res.status(400).send(error);
+        }
+
+    )
+
+})*/
+
+app.post('/addadmin', async (req, res) => {
+    try {
+        data = req.body;
+        adm = new admin(data);
+
+         salt = bcrypt.genSaltSync(10);
+         cryptedpass = await bcrypt.hashSync(data.password, salt);
+        adm.password = cryptedpass;
+
+        result = await adm.save();
+        res.status(200).send(result);
+    } catch (err) {
+        console.status(400).log(err);
+
+    }
+});
+
+
 
 app.post('/addcertificate',async(req,res)=>{
     data = req.body;
@@ -88,8 +150,8 @@ app.post('/verifyuser',(req,res)=>{
         )
 })
 
-app.get('/getallcertifictaes',(req,res)=>{
-    certificate.find()
+app.get('/getallcertifictes',(req,res)=>{
+    certif.find()
         .then(
             (resultat)=>{
                 res.send(resultat);
@@ -115,6 +177,23 @@ app.get('/getallusers',(req,res)=>{
         )
 })
 
+app.get('/getbyid/:id' , (req , res)=>{
+
+    myid = req.params.id
+
+    user.findOne({_id: myid })
+    .then(
+        (user)=>{
+            res.send(user)
+        }
+    )
+    .catch(
+        (err)=>{
+            res.send(err)
+        }
+    )
+})
+
 app.get('/getalladmins',(req,res)=>{
     admin.find()
         .then(
@@ -129,7 +208,7 @@ app.get('/getalladmins',(req,res)=>{
         )
 })
 
-app.post('/login', async (req, res) => {
+/*app.post('/login', async (req, res) => {
     try {
         const data = req.body;
         const email = data['email'];
@@ -149,10 +228,152 @@ app.post('/login', async (req, res) => {
     } catch (err) {
         res.send(err);
     }
+});*/
+
+app.post('/login', async (req, res) => {
+    try {
+        const data = req.body;
+        const email = data.email;
+        const password = data.password;
+
+        // Recherchez à la fois dans la collection 'user' et 'admin'
+        const userResult = await user.findOne({ email: email });
+        const adminResult = await admin.findOne({ email: email });
+
+        if (!userResult && !adminResult) {
+            console.log('User not found');
+            res.status(404).send('Email or password invalid!');
+        } else {
+            let isValidUser = false;
+
+            if (userResult) {
+                isValidUser = bcrypt.compareSync(password, userResult.password);
+            }
+
+            let isValidAdmin = false;
+
+            if (adminResult) {
+                isValidAdmin = bcrypt.compareSync(password, adminResult.password);
+            }
+
+            if (isValidUser || isValidAdmin) {
+                let payload;
+
+                if (isValidUser) {
+                    payload = {
+                        _id: userResult.id,
+                        firstname: userResult.firstname,
+                        lastname: userResult.lastname,
+                        email: userResult.email,
+                        role: 'user'
+                    };
+                } else {
+                    payload = {
+                        _id: adminResult.id,
+                        firstname: adminResult.firstname,
+                        lastname: adminResult.lastname,
+                        email: adminResult.email,
+                        role: 'admin'
+                    };
+                }
+
+                const token = jwt.sign(payload, '20960018');
+                console.log('Token generated:', token);
+                res.status(200).send({ mytoken: token });
+            } else {
+                console.log('Invalid password');
+                res.status(404).send('Email or password invalid!');
+            }
+        }
+    } catch (error) {
+        console.error('Error in /login:', error);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
 
 
+/*app.post('/login', (req,res) => {
+
+    let userFound;
+
+    user.findOne({email: req.body.email})
+        .then(userResult => {
+            if(!userResult){
+                return res.status(401).json({
+                    message: 'User not found'
+                })
+            }
+            userFound = userResult
+            return bcrypt.compare(req.body.password, userResult.password)
+        })
+    .then(result => {
+        if(!result){
+            return res.status(401).json({
+                message: 'Password is incorrect'
+            })
+        }
+
+        const token = jwt.sign({email: userFound.email, userId: userFound._id}, "secret_string", {expiresIn:"1h"})
+        return res.status(200).json({
+            token: token
+        })
+    })
+    .catch(err => {
+        return res.status(401).json({
+            message: 'Error with authentication'
+        })
+    })
+})*/
+
+/*app.put('/updateuser', async (req, res) => {
+    try {
+      const data = req.body;
+      const userId = data._id; // L'ID de l'utilisateur à mettre à jour
+  
+      // Vous pouvez utiliser la méthode findByIdAndUpdate de Mongoose pour mettre à jour l'utilisateur
+      const updatedUser = await user.findByIdAndUpdate(userId, data);
+  
+      res.status(200).json(updatedUser);
+    } catch (err) {
+      res.status(400).json({ error: 'Erreur lors de la mise à jour de l"utilisateur' });
+    }
+  });*/
+
+
+  app.post('/addcertifetud',async(req,res)=>{
+    data = req.body;
+    cert = new certif(data);
+    cert.save()
+        .then(
+            (res1)=>{
+                res.send(res1)
+            }
+        )
+        .catch(
+            (err)=>{
+                res.send(err);
+            }
+        )
+})
+
+app.delete('/deleteCertifEtud/:id' ,(req,res)=>{
+
+    let id=req.params.id
+
+    certif.findByIdAndDelete({_id: id})
+        .then(
+            (certifdelete)=>{
+                res.status(200).send(certifdelete)
+            }
+        )
+        .catch(
+            (err)=>{
+                res.status(400).send(err);
+            }
+        )
+})
+
 app.listen(3000,()=>{
-    console.log('hello motmot');
+    console.log('hello kouki');
 })
