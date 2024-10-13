@@ -1,7 +1,6 @@
 const express = require('express');
 const user = require('./Models/user');
 const admin = require('./Models/admin');
-const certificate = require('./Models/certificate');
 const certif = require('./Models/certif_etud');
 
 require('./Config/connect');
@@ -51,32 +50,6 @@ app.delete('/deleteUser/:id' ,(req,res)=>{
 })
 
 
-
-/*app.post('/adduser' ,async (req,res)=>{
-
-    data =req.body;
-    user =new user(data);
-
-    salt = bcrypt.genSaltSync(10);
-
-    cryptedpass = await bcrypt.hashSync( data.password , salt);
-
-    user.password = cryptedpass;
-    user.save()
-    .then(
-        (saved)=>{
-            res.status(200).send(user);
-        }
-    )
-    .catch(
-        (error)=>{
-            res.status(400).send(error);
-        }
-
-    )
-
-})*/
-
 app.post('/addadmin', async (req, res) => {
     try {
         data = req.body;
@@ -94,7 +67,22 @@ app.post('/addadmin', async (req, res) => {
     }
 });
 
+app.delete('/deleteAdmin/:id' ,(req,res)=>{
 
+    let id=req.params.id
+
+    admin.findByIdAndDelete({_id: id})
+        .then(
+            (admindelete)=>{
+                res.status(200).send(admindelete)
+            }
+        )
+        .catch(
+            (err)=>{
+                res.status(400).send(err);
+            }
+        )
+})
 
 app.post('/addcertificate',async(req,res)=>{
     data = req.body;
@@ -208,27 +196,9 @@ app.get('/getalladmins',(req,res)=>{
         )
 })
 
-/*app.post('/login', async (req, res) => {
-    try {
-        const data = req.body;
-        const email = data['email'];
-        const password = data['password'];
 
-        const userResult = await user.findOne({ email: email, password: password });
-        if (userResult) {
-            res.json("user");
-        } else {
-            const adminResult = await admin.findOne({ email: email, password: password });
-            if (adminResult) {
-                res.json("admin");
-            } else {
-                res.send(false);
-            }
-        }
-    } catch (err) {
-        res.send(err);
-    }
-});*/
+
+
 
 app.post('/login', async (req, res) => {
     try {
@@ -293,6 +263,8 @@ app.post('/login', async (req, res) => {
 
 
 
+
+
 /*app.post('/login', (req,res) => {
 
     let userFound;
@@ -326,19 +298,10 @@ app.post('/login', async (req, res) => {
     })
 })*/
 
-/*app.put('/updateuser', async (req, res) => {
-    try {
-      const data = req.body;
-      const userId = data._id; // L'ID de l'utilisateur à mettre à jour
-  
-      // Vous pouvez utiliser la méthode findByIdAndUpdate de Mongoose pour mettre à jour l'utilisateur
-      const updatedUser = await user.findByIdAndUpdate(userId, data);
-  
-      res.status(200).json(updatedUser);
-    } catch (err) {
-      res.status(400).json({ error: 'Erreur lors de la mise à jour de l"utilisateur' });
-    }
-  });*/
+
+
+
+
 
 
   app.post('/addcertifetud',async(req,res)=>{
@@ -373,6 +336,8 @@ app.delete('/deleteCertifEtud/:id' ,(req,res)=>{
             }
         )
 })
+
+
 
 app.listen(3000,()=>{
     console.log('hello kouki');

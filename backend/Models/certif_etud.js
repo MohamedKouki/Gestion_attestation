@@ -1,12 +1,15 @@
 const mongoose = require('mongoose');
 const certif = mongoose.model('certif',{
-    name : {
+    firstname : {
         type : String
     },
-    dateDebut : {
+    lastname : {
         type : String
     },
-    dateFin : {
+    dateD : {
+        type : String
+    },
+    dateF : {
         type : String
     },
     theme : {
